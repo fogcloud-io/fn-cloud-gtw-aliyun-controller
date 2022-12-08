@@ -43,14 +43,37 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	jsoniter.Unmarshal(reqBytes, req)
 
-	topic, payload, _ := HandleDownlink(req.RawClientid, req.RawUsername, req.RawPassword, req.FogTopic, req.FogPayload)
+	topic, payload, err := HandleDownlink(req.RawClientid, req.RawUsername, req.RawPassword, req.FogTopic, req.FogPayload)
+	if err != nil {
+		w.WriteHeader(http.StatusOK)
+		respBytes, _ := jsoniter.Marshal(struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+		}{
+			Code:    -1,
+			Message: err.Error(),
+		})
+		w.Write(respBytes)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 	respBytes, _ := jsoniter.Marshal(struct {
-		RawTopic   string `json:"raw_topic"`
-		RawPayload string `json:"raw_payload"`
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+		Data    struct {
+			RawTopic   string `json:"raw_topic"`
+			RawPayload string `json:"raw_payload"`
+		}
 	}{
-		RawTopic:   topic,
-		RawPayload: payload,
+		Code:    0,
+		Message: "",
+		Data: struct {
+			RawTopic   string "json:\"raw_topic\""
+			RawPayload string "json:\"raw_payload\""
+		}{
+			RawTopic:   topic,
+			RawPayload: payload,
+		},
 	})
 	w.Write(respBytes)
 }
