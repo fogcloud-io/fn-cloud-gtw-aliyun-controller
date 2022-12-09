@@ -24,8 +24,9 @@ type CloudGtwDownlinkReq struct {
 var (
 	downlinkMatcher matcher.Matcher
 
-	ErrUnmatchedTopic  = errors.New("unmatched topic")
-	ErrInvalidUsername = errors.New("invalid username")
+	ErrInvalidTopic       = errors.New("invalid topic")
+	ErrNullTopicOrPayload = errors.New("null topic or payload")
+	ErrInvalidUsername    = errors.New("invalid username")
 )
 
 func initMatcher() {
@@ -47,6 +48,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	topic, payload, err := HandleDownlink(req.RawClientid, req.RawUsername, req.RawPassword, req.FogTopic, req.FogPayload)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -69,6 +71,10 @@ const (
 )
 
 func HandleDownlink(clientid, username, password, fogTopic, fogPayload string) (rawTopic, rawPayload string, err error) {
+	if fogTopic == "" || fogPayload == "" {
+		err = ErrNullTopicOrPayload
+		return
+	}
 	log.Printf("fog_topic: %s, fog_payload: %s", fogTopic, fogPayload)
 
 	pk, dn, err := parseUsername(username)
@@ -78,7 +84,7 @@ func HandleDownlink(clientid, username, password, fogTopic, fogPayload string) (
 
 	matchedTopic, params, matched := downlinkMatcher.MatchWithAnonymousParams(fogTopic)
 	if !matched {
-		return "", "", ErrUnmatchedTopic
+		return "", "", ErrInvalidTopic
 	}
 
 	switch matchedTopic {
@@ -87,7 +93,7 @@ func HandleDownlink(clientid, username, password, fogTopic, fogPayload string) (
 		rawPayload = payloadFogToAliyun(fogPayload, "thing.service.property.set")
 	case FogTopicThingModelSvcReq:
 		if len(params) != 3 {
-			return "", "", ErrUnmatchedTopic
+			return "", "", ErrInvalidUsername
 		}
 		rawTopic = FillTopic(AliyunTopicThingModelSvcReq, pk, dn, params[2])
 		rawPayload = payloadFogToAliyun(fogPayload, "thing.service."+params[2])
