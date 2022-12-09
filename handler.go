@@ -28,7 +28,7 @@ var (
 	ErrInvalidUsername = errors.New("invalid username")
 )
 
-func init() {
+func initMatcher() {
 	downlinkMatcher = matcher.NewMqttTopicMatcher()
 
 	downlinkMatcher.AddPath(FogTopicThingModelPropSet)
@@ -43,6 +43,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	jsoniter.Unmarshal(reqBytes, req)
 
+	initMatcher()
 	topic, payload, err := HandleDownlink(req.RawClientid, req.RawUsername, req.RawPassword, req.FogTopic, req.FogPayload)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
